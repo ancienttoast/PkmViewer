@@ -1,5 +1,5 @@
 import
-  streams, sequtils, strutils, tables, math,
+  streams, sequtils, strutils, tables,
   gba/[lz77, image],
   pkm/[data, tileset, cart, render, types, world, link, text]
 
@@ -127,23 +127,24 @@ proc tile*(s: PkmMap, ts: SdlTilemap, x, y: int): SdlTile =
     ts.tiles[t]
 
 
-proc draw(rend: sdl2.RendererPtr, map: PkmMap, ts: SdlTilemap, xPos, yPos, scale: float) =
+proc draw(rend: sdl2.RendererPtr, map: PkmMap, ts: SdlTilemap, xPos, yPos: int, scale: float) =
+  rend.setScale(scale.cfloat, scale.cfloat)
   for y in 0 ..< map.size[1].int:
     for x in 0 ..< map.size[0].int:
       var
         t = map.tile(ts, x, y)
         dst = (
-          x: ((-xPos * scale) + x.float * PkmBlockSize * scale).floor.cint,
-          y: ((-yPos * scale) + y.float * PkmBlockSize * scale).floor.cint,
-          w: (PkmBlockSize * scale).floor.cint,
-          h: (PkmBlockSize * scale).floor.cint
+          x: ((-xPos) + x * PkmBlockSize).cint,
+          y: ((-yPos) + y * PkmBlockSize).cint,
+          w: PkmBlockSize.cint,
+          h: PkmBlockSize.cint
         )
       rend.copy(t.texture, addr t.rect, addr dst)
 
 
 var
   done = newSeq[int]()
-proc draw (rend: sdl2.RendererPtr, ts: TableRef[int64, SdlTilemap], map: int, world: PkmMapBank, xPos, yPos, scale: float) =
+proc draw (rend: sdl2.RendererPtr, ts: TableRef[int64, SdlTilemap], map: int, world: PkmMapBank, xPos, yPos: int, scale: float) =
   let
     current = world[map]
   rend.draw(current, ts[current.tileset.id], xPos, yPos, scale)
@@ -162,14 +163,14 @@ proc draw (rend: sdl2.RendererPtr, ts: TableRef[int64, SdlTilemap], map: int, wo
     let
       x =
         case link.direction
-        of ldLeft:  xPos + world[link.map].size[0].float*16
-        of ldRight: xPos - current.size[0].float*16
-        else:       xPos - link.offset.float*16
+        of ldLeft:  xPos + world[link.map].size[0].int*16
+        of ldRight: xPos - current.size[0].int*16
+        else:       xPos - link.offset*16
       y =
         case link.direction
-        of ldDown: yPos - current.size[1].float*16
-        of ldUp:   yPos + world[link.map].size[1].float*16
-        else:      yPos - link.offset.float*16
+        of ldDown: yPos - current.size[1].int*16
+        of ldUp:   yPos + world[link.map].size[1].int*16
+        else:      yPos - link.offset*16
     rend.draw(ts, link.map, world, x, y, scale)
 
 
@@ -190,8 +191,8 @@ for id, ts in r.tilesetCache.pairs:
 const
   ScrollSpeed = 11
 var
-  xPos  = 0.0
-  yPos  = 0.0
+  xPos  = 0
+  yPos  = 0
   scale = 1.0
 
   running = true
@@ -208,8 +209,8 @@ while running:
         state = sdl2.getMouseState(nil, nil)
       if (state and SDL_BUTTON(BUTTON_RIGHT)).int > 0:
         if m.xrel < 100:
-          xPos -= m.xrel.float / scale
-          yPos -= m.yrel.float / scale
+          xPos -= (m.xrel.float / scale).int
+          yPos -= (m.yrel.float / scale).int
 
     of KeyDown:
       let
