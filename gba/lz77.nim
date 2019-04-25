@@ -2,7 +2,7 @@ import
   streams
 
 
-proc decompressLZ77* (input: Stream): seq[uint8] =
+proc decompressLZ77*(input: Stream): seq[uint8] =
   # Based on:
   #   https://github.com/Barubary/dsdecmp/blob/master/CSharp/DSDecmp/Program.cs
   #
@@ -29,23 +29,23 @@ proc decompressLZ77* (input: Stream): seq[uint8] =
     decomp_size = 0
 
   if input.readInt8() != LZ10Tag:
-    raise newException (Exception, "Data is not a valid LZ-0x10 chunk.")
+    raise newException(Exception, "Data is not a valid LZ-0x10 chunk.")
 
   for i in 0 ..< 3:
     decomp_size += cast[uint8](input.readInt8()).int shl (i * 8)
 
   if decomp_size > MaxOutSize:
-    raise newException (Exception, "Data will be larger than " & $MaxOutSize & " (" & $decomp_size & ") and will not be decompressed.")
+    raise newException(Exception, "Data will be larger than " & $MaxOutSize & " (" & $decomp_size & ") and will not be decompressed.")
   elif decomp_size == 0:
     for i in 0 ..< 4:
       decomp_size += input.readInt8() shl (i * 8);
     
     if decomp_size > MaxOutSize shl 8:
-      raise newException (Exception, "Data will be larger than " & $MaxOutSize & " (" & $decomp_size & ") and will not be decompressed.")
+      raise newException(Exception, "Data will be larger than " & $MaxOutSize & " (" & $decomp_size & ") and will not be decompressed.")
 
   var
     curr_size = 0
-  result.newSeq (decomp_size)
+  result.newSeq(decomp_size)
 
   while curr_size < decomp_size:
     let
@@ -58,11 +58,11 @@ proc decompressLZ77* (input: Stream): seq[uint8] =
           b = cast[uint8](input.readInt8())
           n = 3 + (b shr 4).int
 
-          disp = ((b and 0x0F) shl 8) or cast[uint8](input.readInt8()).int
+          disp = ((b.int and 0x0F) shl 8) or cast[uint8](input.readInt8()).int
           cdest = curr_size
 
         if disp > curr_size:
-          raise newException (Exception, "Cannot go back more than already written")
+          raise newException(Exception, "Cannot go back more than already written")
         for j in 0 ..< n:
           result[curr_size] = result[cdest - disp - 1 + j]
           curr_size += 1

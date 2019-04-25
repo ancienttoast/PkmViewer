@@ -36,11 +36,11 @@ const
 
 
 
-proc `$`* (s: GbaColor): string =
-  "#" & s[0].int.toHex (2) & s[1].int.toHex (2) & s[2].int.toHex (2)
+proc `$`*(s: GbaColor): string =
+  "#" & s[0].int.toHex(2) & s[1].int.toHex(2) & s[2].int.toHex(2)
   #"(" & $s[0] & ", " & $s[1] & ", " & $s[2] & ")"
 
-proc `$`* (s: GbaPalette): string =
+proc `$`*(s: GbaPalette): string =
  result = "["
  for i in 0 .. 14:
   result &= $s[i] & ", "
@@ -53,7 +53,7 @@ proc `$`* (s: GbaPalette): string =
 #  Color conversion
 #
 ##########################################################################################
-proc rgbToGba* (c: GbaColor): uint16 =
+proc rgbToGba*(c: GbaColor): uint16 =
   ## Converts rgb colors to the gba format (15-bit RGB).
   ##
   ## Based on:
@@ -62,7 +62,7 @@ proc rgbToGba* (c: GbaColor): uint16 =
     (((c[1] shr 3) and 31) shl 5) or
     (((c[2] shr 3) and 31) shl 10))).uint16
 
-proc gbaToRgb* (c: uint16): GbaColor =
+proc gbaToRgb*(c: uint16): GbaColor =
   ## Converts gba formatted (15-bit RGB) colors to 8bpp rgb .
   ##
   ## Based on:
@@ -80,23 +80,23 @@ proc gbaToRgb* (c: uint16): GbaColor =
 #  Reading procs
 #
 ##########################################################################################
-proc readGbaPalette* (s: GBARom, compressed = true): GbaPalette =
+proc readGbaPalette*(s: GBARom, compressed = true): GbaPalette =
   let
     buffer =
       if compressed: s.decompressLZ77()
-      else:          s.read (32, uint8)
+      else:          s.read(32, uint8)
   if buffer.len != 32:
-    raise newException (Exception, "Invalid size for palette.")
+    raise newException(Exception, "Invalid size for palette.")
 
   for i in 0 ..< 16:
-    result[i] = gbaToRgb (buffer[i*2].uint16 + (buffer[i*2 + 1].uint16 shl 8))
+    result[i] = gbaToRgb(buffer[i*2].uint16 + (buffer[i*2 + 1].uint16 shl 8))
 
 
-proc readGbaImage* (s: GBARom): GbaImage =
+proc readGbaImage*(s: GBARom): GbaImage =
   s.decompressLZ77()
 
-proc readGbaImage* (s: GBARom, size: int): GbaImage =
-  s.read (size, uint8)
+proc readGbaImage*(s: GBARom, size: int): GbaImage =
+  s.read(size, uint8)
 
 
 
@@ -109,30 +109,30 @@ type
     pixels*: seq[GbaColor]
 
 
-proc initGbaBitmap* (width, height: int): GbaBitmap =
-  GbaBitmap (
+proc initGbaBitmap*(width, height: int): GbaBitmap =
+  GbaBitmap(
     width: width,
     height: height,
-    pixels: newSeq[GbaColor] (width*GbaTileSize * height*GbaTileSize)
+    pixels: newSeq[GbaColor](width*GbaTileSize * height*GbaTileSize)
   )
 
 
-template widthInPixels* (s: GbaBitmap): int =
+template widthInPixels*(s: GbaBitmap): int =
   s.width * GbaTileSize
 
-template heightInPixels* (s: GbaBitmap): int =
+template heightInPixels*(s: GbaBitmap): int =
   s.height * GbaTileSize
 
 
-template pixelCoords* (s: GbaBitmap, offset: int): array[2, int] =
+template pixelCoords*(s: GbaBitmap, offset: int): array[2, int] =
   let
     w = s.widthInPixels
     y = offset div w
   [offset - y*w, y]
 
 
-proc copyTile* (s: var GbaBitmap, x, y: int, image: GbaImage, tile: int, palette: GbaPalette, flipX = false, flipY = false, transparency = true) =
-  proc flip (x, y: int, w, h: int, flipX, flipY: bool): array[2, int] =
+proc copyTile*(s: var GbaBitmap, x, y: int, image: GbaImage, tile: int, palette: GbaPalette, flipX = false, flipY = false, transparency = true) =
+  proc flip(x, y: int, w, h: int, flipX, flipY: bool): array[2, int] =
     [if flipX: w - 2 - x else: x, if flipY: h - 1 - y else: y]
 
   let
@@ -155,12 +155,12 @@ proc copyTile* (s: var GbaBitmap, x, y: int, image: GbaImage, tile: int, palette
           if flipX: [(image[i].int and 0xf0) shr 4, (image[i].int and 0x0f).int]
           else:     [(image[i].int and 0x0f).int, (image[i].int and 0xf0) shr 4]
 
-        pos = flip (j*2, nY, GbaTileSize, GbaTileSize, flipX, flipY)
+        pos = flip(j*2, nY, GbaTileSize, GbaTileSize, flipX, flipY)
         offset = (pixelY + pos[1])*pixelWidth + pixelX + pos[0]
 
       if offset + 1 > s.pixels.len:
         i += 1
-        raise newException (Exception, "Trying to set pixel #" & $(offset + 1) & " of bitmap with " & $s.pixels.len & " pixels.")
+        raise newException(Exception, "Trying to set pixel #" & $(offset + 1) & " of bitmap with " & $s.pixels.len & " pixels.")
       if not transparency or p[0] != 0:
         s.pixels[offset + 0] = palette[p[0]]
       if not transparency or p[1] != 0:

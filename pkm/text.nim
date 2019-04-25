@@ -95,23 +95,23 @@ type
   PKMText* = distinct string
 
 
-proc readPKMText* (s: GBARom, length: int): PKMText =
-  s.read (length, string).PKMText
+proc readPKMText*(s: GBARom, length: int): PKMText =
+  s.read(length, string).PKMText
 
-proc readPKMText* (s: GBARom): PKMText =
+proc readPKMText*(s: GBARom): PKMText =
   const
     textSeparator = 0xFF
 
   result = "".PKMText
   var
     c = 0'u8
-  c = s.read (uint8)
+  c = s.read(uint8)
   while c != textSeparator:
     result.string &= c.char
-    c = s.read (uint8)
+    c = s.read(uint8)
 
 
-proc toAscii* (s: PKMText): string =
+proc toAscii*(s: PKMText): string =
   result = ""
   for c in s.string:
     result &= englishCharSet[c.int]

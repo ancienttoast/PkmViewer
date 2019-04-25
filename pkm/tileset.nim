@@ -48,15 +48,15 @@ type
 
 
 
-proc readBehavior (s: PkmRom, header: PkmTilesetHeader, blockNum: int): int =
+proc readBehavior(s: PkmRom, header: PkmTilesetHeader, blockNum: int): int =
   if s.gameData.engine == 1:
-    s.seek (header.behavior + (blockNum * 4)).read (uint32).int
+    s.seek(header.behavior + (blockNum * 4)).read(uint32).int
   else:
-    (s.seek (header.behavior + (blockNum * 2)).read (uint32) and 0xffff).int
+    (s.seek(header.behavior + (blockNum * 2)).read(uint32) and 0xffff).int
 
-proc readBlock (s: PkmRom, header: PkmTilesetHeader, blockNum: int): PkmBlock =
+proc readBlock(s: PkmRom, header: PkmTilesetHeader, blockNum: int): PkmBlock =
   let
-    behavior = s.readBehavior (header, blockNum)
+    behavior = s.readBehavior(header, blockNum)
 
     shiftSize = if s.gameData.engine == 1: 24 else: 8
     tripleTile = 
@@ -75,7 +75,7 @@ proc readBlock (s: PkmRom, header: PkmTilesetHeader, blockNum: int): PkmBlock =
 
     numTiles = if tripleTile != tkNone: 12 else: 8
 
-  result = newSeq[PkmTile] (numTiles)
+  result = newSeq[PkmTile](numTiles)
   var
     x = 0
     y = 0
@@ -94,7 +94,7 @@ proc readBlock (s: PkmRom, header: PkmTilesetHeader, blockNum: int): PkmBlock =
       blockPointer = blockPointer - i*2
 
     let
-      orig = s.seek (blockPointer + i*2).read (uint16).int
+      orig = s.seek(blockPointer + i*2).read(uint16).int
     t = (
       num:     orig and 0x3ff,
       palette: (orig and 0xf000) shr 12,
@@ -116,18 +116,18 @@ proc readBlock (s: PkmRom, header: PkmTilesetHeader, blockNum: int): PkmBlock =
       layerNumber += 1
 
 
-proc readPkmTileset* (s: PkmRom, numBlocks: int): PkmTileset =
-  result = PkmTileset (offset: s.tell())
+proc readPkmTileset*(s: PkmRom, numBlocks: int): PkmTileset =
+  result = PkmTileset(offset: s.tell())
   let
-    header = s.read (PkmTilesetHeader)
+    header = s.read(PkmTilesetHeader)
   if header.compressed != 1:
-    raise newException (Exception, "Non compressed tileset loading not implemented!")
+    raise newException(Exception, "Non compressed tileset loading not implemented!")
 
   for i, p in result.palettes.mpairs:
-    p = s.seek (header.palettes + i*32).readGbaPalette (false)
+    p = s.seek(header.palettes + i*32).readGbaPalette(false)
 
-  result.image = s.seek (header.image).readGbaImage()
+  result.image = s.seek(header.image).readGbaImage()
 
-  result.blocks = newSeq[PkmBlock] (numBlocks)
+  result.blocks = newSeq[PkmBlock](numBlocks)
   for i in 0 ..< numBlocks:
-    result.blocks[i] = s.readBlock (header, i)
+    result.blocks[i] = s.readBlock(header, i)

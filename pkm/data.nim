@@ -26,27 +26,27 @@ type
   PkmDataStore = TableRef[string, PkmGameData]
 
 
-proc parseArray (s: string): seq[int] =
+proc parseArray(s: string): seq[int] =
   let
-    parts = s.split (',')
+    parts = s.split(',')
 
-  result = newSeq[int] (parts.len)
+  result = newSeq[int](parts.len)
   for i, p in parts:
     result[i] = p.parseInt()
 
 
-proc newPkmDataStore* (path: string): PkmDataStore =
+proc newPkmDataStore*(path: string): PkmDataStore =
   result = newTable[string, PkmGameData]()
   let
-    f = newFileStream (path, fmRead)
+    f = newFileStream(path, fmRead)
 
   if f == nil:
-    raise newException (Exception, "Could not find config file ('" & path & "').")
+    raise newException(Exception, "Could not find config file ('" & path & "').")
     
   var
     p: CfgParser
     game = ""
-  p.open (f, path)
+  p.open(f, path)
   while true:
     var
       e = p.next()
@@ -58,7 +58,7 @@ proc newPkmDataStore* (path: string): PkmDataStore =
       game = e.section
       var
         g: PkmGameData
-      result.add (e.section, g)
+      result.add(e.section, g)
 
     of cfgKeyValuePair:
       case e.key
@@ -102,7 +102,7 @@ proc newPkmDataStore* (path: string): PkmDataStore =
 
 
 let
-  dataStore* = newPkmDataStore ("MEH.ini")
+  dataStore* = newPkmDataStore("MEH.ini")
 
 
 

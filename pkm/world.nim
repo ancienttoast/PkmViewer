@@ -49,7 +49,7 @@ type
     links*: seq[PkmMapLink]
 
 
-proc calcNumBlocks (s: PkmRom, tiles: seq[uint16]): int =
+proc calcNumBlocks(s: PkmRom, tiles: seq[uint16]): int =
   var z = 0
   for t in tiles:
     # search for the biggest tile index
@@ -57,36 +57,36 @@ proc calcNumBlocks (s: PkmRom, tiles: seq[uint16]): int =
       z = (t.int and 0x03ff)
   z - s.gameData.mainTSBlocks + 1
 
-proc readPkmMap (s: PkmRom): PkmMap =
+proc readPkmMap(s: PkmRom): PkmMap =
   let
     offset = s.tell()
 
-    header = s.seek (offset).read (PkmMapHeader)
-    layout = s.seek (header.layout).read (PkmMapLayout)
+    header = s.seek(offset).read(PkmMapHeader)
+    layout = s.seek(header.layout).read(PkmMapLayout)
 
-    tiles  = s.seek (layout.tiles).read (layout.size[0].int * layout.size[1].int, uint16)
+    tiles  = s.seek(layout.tiles).read(layout.size[0].int * layout.size[1].int, uint16)
 
-  result = PkmMap (
+  result = PkmMap(
     offset: offset,
     header: header,
 
     size: layout.size,
-    tiles: tiles.mapIt (PkmMapTile, (num: it.int and 0x03ff, attribute: (it.int and 0xff00) shr 8)),
+    tiles: tiles.mapIt(PkmMapTile, (num: it.int and 0x03ff, attribute: (it.int and 0xff00) shr 8)),
     links:
       if header.links.int == 0:
         newSeq[PkmMapLink]()
       else:
-        s.seek (header.links).readPkmMapLinks()
+        s.seek(header.links).readPkmMapLinks()
   )
 
   let
     tsId = (layout.globalTileset.int64 shl 32) + layout.localTileset.int64
   if tsId notin s.tilesetCache:
     let
-      globalTs = s.seek (layout.globalTileset).readPkmTileset (s.gameData.mainTSBlocks)
-      localTs  = s.seek (layout.localTileset).readPkmTileset (s.calcNumBlocks (tiles))
+      globalTs = s.seek(layout.globalTileset).readPkmTileset(s.gameData.mainTSBlocks)
+      localTs  = s.seek(layout.localTileset).readPkmTileset(s.calcNumBlocks(tiles))
 
-    s.tilesetCache[tsId] = s.renderTileset (globalTs, localTs)
+    s.tilesetCache[tsId] = s.renderTileset(globalTs, localTs)
 
   result.tileset = s.tilesetCache[tsId]
 
@@ -101,22 +101,22 @@ type
     banks: seq[PkmMapBank]
 
 
-proc readPkmBank* (s: PkmRom, numMaps: int): PkmMapBank =
-  result.newSeq (numMaps)
+proc readPkmBank*(s: PkmRom, numMaps: int): PkmMapBank =
+  result.newSeq(numMaps)
   let
-    mapPtrs = s.read (result.len, GBAPointer)
+    mapPtrs = s.read(result.len, GBAPointer)
 
   for i, m in result.mpairs:
-    m = s.seek (mapPtrs[i]).readPkmMap()
+    m = s.seek(mapPtrs[i]).readPkmMap()
 
-proc readPkmWorld* (s: PkmRom): PkmWorld =
-  result = PkmWorld (
-    banks: newSeq[PkmMapBank] (s.gameData.numBanks)
+proc readPkmWorld*(s: PkmRom): PkmWorld =
+  result = PkmWorld(
+    banks: newSeq[PkmMapBank](s.gameData.numBanks)
   )
 
   let
-    bankListPtr = s.seek (s.gameData.mapHeaders).read (GBAPointer)
+    bankListPtr = s.seek(s.gameData.mapHeaders).read(GBAPointer)
   for i, b in result.banks.mpairs:
     let
-      bankPtr = s.seek (bankListPtr + i*4).read (GBAPointer)
-    b = s.seek (bankPtr).readPkmBank (s.gameData.bankMapNums[i])
+      bankPtr = s.seek(bankListPtr + i*4).read(GBAPointer)
+    b = s.seek(bankPtr).readPkmBank(s.gameData.bankMapNums[i])

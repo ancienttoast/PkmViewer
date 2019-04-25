@@ -1,7 +1,14 @@
-{.push hint[XDeclaredButNotUsed]: off.}
+##[
 
-import streams
+  Format specification: http://www.dca.fee.unicamp.br/~martino/disciplinas/ea978/tgaffs.pdf
 
+]##
+import streams, endians
+
+
+
+proc littleEndian[T: uint16 | int16](value: T): T =
+  littleEndian16(addr result, unsafeAddr value)
 
 
 type
@@ -14,6 +21,7 @@ type
   ImageKind* = enum
     ikGreyscale
     ikTruecolor
+    ikColormap
 
 
   Image* = ref object
@@ -25,6 +33,9 @@ type
       gPixels*: seq[Color8]
     of ikTruecolor:
       tPixels*: seq[Color32]
+    of ikColormap:
+      cPixels*: seq[Color8]
+      cColormap*: string
 
 
   TgaKind = enum
@@ -36,14 +47,17 @@ type
     tkRleTrueColor = 10
     tkRleGreyscale = 11
 
+const
+  TGA_RLE_KIND = {tkRleColorMap, tkRleTrueColor, tkRleGreyscale}
 
 
 
-proc rleDecode (s: Stream, T: typedesc, size: int): seq[T] =
-  proc read[U] (s: Stream): U =
-    discard s.readData (addr result, U.sizeof)
 
-  result = newSeq[T] (size)
+proc rleDecode(s: Stream, T: typedesc, size: int): seq[T] =
+  proc read[U](s: Stream): U =
+    discard s.readData(addr result, U.sizeof)
+
+  result = newSeq[T](size)
   var i = 0
   while i < size:
     let
@@ -53,64 +67,44 @@ proc rleDecode (s: Stream, T: typedesc, size: int): seq[T] =
       length = (header and 0b01111111).ze + 1
 
     if kind:
-      let d = read[T] (s)
-      for j in i.. <i+length:
+      let d = read[T](s)
+      for j in i..<i+length:
         result[j] = d
     else:
-      for j in i.. <i+length:
-        result[j] = read[T] (s)
+      for j in i..<i+length:
+        result[j] = read[T](s)
 
     i += length
 
 
-import strutils
 
-# TODO: Does not work
-proc rleEncode (T: typedesc, data: seq[T], width, height: int): string =
-  proc findPacket (data: seq[T], i: int, equal: bool): tuple[slice: Slice[int], size: int, header: uint8] =
-    let
-      op = if equal: proc (a, b: T): bool = a == b else: proc (a, b: T): bool = a != b
-      d = data[i]
-
+proc rleEncode(s: Stream, T: typedesc, data: seq[T], width, height: int) =
+  proc findPacket(data: seq[T], i: int): tuple[size: int, header: uint8] =
     var j = 1
-    while i+j < data.high and i+j < i*height + width and j < 128 and
-          op (d, data[i+j]):
+    while i+j < data.high and (i+j) mod width != 0 and j < 128 and data[i] == data[i+j]:
       j += 1
-
-    result =
-      if equal:
-        (i..i, j, (0b10000000 or (j-1)).uint8)
-      else:
-        (i..i+j, j, (0b00000000 or (j-1)).uint8)
-
-  let
-    s = newStringStream ("")
+    (j, if j == 1: 0b00000000'u8 else: (0b10000000 or (j-1)).uint8)
 
   var i = 0
   while i < data.high:
-    let (slice, size, header) = findPacket (data, i, data[i] == data[i+1])
+    let (size, header) = findPacket(data, i)
 
-    s.write (header)
-    for d in data[slice]: s.write (d)
-
+    s.write(header)
+    s.write(data[i])
     i += size
 
-  let size = s.getPosition()
-  s.setPosition (0)
-  result = s.readStr (size)
 
 
-
-proc to32 (r, g, b, a: Color8): Color32 =
+proc to32(r, g, b, a: Color8): Color32 =
   (a.Color32 shl 24) or (r.Color32 shl 16) or (g.Color32 shl 8) or (b.Color32)
 
-proc conv24To32 (data: seq[Color24]): seq[Color32] =
-  result.newSeq (data.len)
+proc conv24To32(data: seq[Color24]): seq[Color32] =
+  result.newSeq(data.len)
   for i, p in data:
-    result[i] = to32 (p[2].Color8, p[1].Color8, p[0].Color8, 0xff.Color8)
+    result[i] = to32(p[2].Color8, p[1].Color8, p[0].Color8, 0xff.Color8)
 
-proc conv16To32 (data: seq[Color16]): seq[Color32] =
-  result.newSeq (data.len)
+proc conv16To32(data: seq[Color16]): seq[Color32] =
+  result.newSeq(data.len)
   for i, p in data:
     const
       mult = (255 / 31).uint16
@@ -119,82 +113,99 @@ proc conv16To32 (data: seq[Color16]): seq[Color32] =
       g = (((p and 0x3e0) shr 5) * mult).Color8
       r = (((p and 0x7c00) shr 10) * mult).Color8
       a =  ((p shr 15) * 255).Color8
-    result[i] = to32 (r, g, b, a)
+    result[i] = to32(r, g, b, a)
 
 
-proc readSeq (s: Stream, T: typedesc, size: int): seq[T] =
-  result.newSeq (size)
-  discard s.readData (addr result[0], T.sizeof * size)
+proc readSeq(s: Stream, T: typedesc, size: int): seq[T] =
+  result.newSeq(size)
+  discard s.readData(addr result[0], T.sizeof * size)
 
-proc handleGreyscale (s: Stream, size: int, rle: bool): seq[Color8] =
-  if rle: s.rleDecode (Color8, size)
-  else:   s.readSeq (Color8, size)
+proc handleGreyscale(s: Stream, size: int, rle: bool): seq[Color8] =
+  if rle: s.rleDecode(Color8, size)
+  else:   s.readSeq(Color8, size)
 
-proc handleTruecolor (s: Stream, size: int, depth: int, rle: bool): seq[Color32] =
-  if depth != 16 and depth != 24 and depth != 32:
-    raise newException (Exception, "Unsupported depth '" & $depth & "'.")
+proc handleColorMapped(s: Stream, size: int, rle: bool): seq[Color8] =
+  if rle: s.rleDecode(Color8, size)
+  else:   s.readSeq(Color8, size)
 
+proc handleTruecolor(s: Stream, size: int, depth: int, rle: bool): seq[Color32] =
+  assert depth in {16, 24, 32}, "Unsupported depth '" & $depth & "'."
   if depth == 24:
-    if rle: s.rleDecode (Color24, size).conv24To32
-    else:   s.readSeq (Color24, size).conv24To32
+    if rle: s.rleDecode(Color24, size).conv24To32
+    else:   s.readSeq(Color24, size).conv24To32
   elif depth == 16:
-    if rle: s.rleDecode (Color16, size).conv16To32
-    else:   s.readSeq (Color16, size).conv16To32
+    if rle: s.rleDecode(Color16, size).conv16To32
+    else:   s.readSeq(Color16, size).conv16To32
   else:
-    if rle: s.rleDecode (Color32, size)
-    else:   s.readSeq (Color32, size)
+    if rle: s.rleDecode(Color32, size)
+    else:   s.readSeq(Color32, size)
 
 
 
-proc readTga* (s: Stream): Image =
+proc readTga*(s: Stream): Image =
   # Header
   let
-    idLength   = s.readChar().int
-    mapKind    = s.readChar().int
-    kind       = s.readChar().TgaKind
+    idLength = s.readUint8().int
+    mapKind = s.readUint8().int
+    kind = try: s.readUint8().TgaKind except RangeError: assert false, "Invalid tga type"; tkBlank
+  assert mapKind in {0, 1}, "Invalid color-map type"
 
-    # Color map specification
-    firstEntry = s.readInt16().ze
-    mapLength  = s.readInt16().ze
-    entrySize  = s.readChar().int
+  # Color map specification
+  let
+    firstEntry = s.readInt16().littleEndian()
+    mapLength = s.readUint16().littleEndian().int
+    entryBits = s.readUint8().int
+  if mapKind == 1:
+    assert entryBits in {16, 24, 32}, "Only 16, 24 and 32 bits are supported per color-map entry"
 
-    # Image specification
-    xOrigin    = s.readInt16().ze
-    yOrigin    = s.readInt16().ze
-    width      = s.readInt16().ze
-    height     = s.readInt16().ze
+  # Image specification
+  discard s.readInt16().littleEndian() # xOrigin
+  discard s.readInt16().littleEndian() # yOrigin
+  let
+    width      = s.readUint16().littleEndian().int
+    height     = s.readUint16().littleEndian().int
+    pixelDepth = s.readUint8().int
+  discard s.readUint8() # descriptor
 
-    pixelDepth = s.readChar().int
-    descriptor = s.readChar().int
-
-    # Optional field containing identifying information
-    id = s.readStr (idLength)
+  # Optional field containing identifying information
+  discard s.readStr(idLength)
 
   # Look-up table containing color map data
   # we load it because not every stream supports setPosition
-  discard s.readStr (mapLength)
+  let
+    colormap = s.readStr(mapLength * (entryBits div 8))
 
   # Image data
   case kind
   of tkGreyscale, tkRleGreyscale:
-    result = Image (width: width, height: height,
-                    kind: ikGreyscale,
-                    gPixels: s.handleGreyscale (width * height, kind == tkRleGreyscale))
+    result = Image(
+      width: width, height: height,
+      kind: ikGreyscale,
+      gPixels: s.handleGreyscale(width * height, kind in TGA_RLE_KIND))
   of tkTrueColor, tkRleTrueColor:
-    result = Image (width: width, height: height,
-                    kind: ikTruecolor,
-                    tPixels: s.handleTruecolor (width * height, pixelDepth, kind == tkRleTrueColor))
+    result = Image(
+      width: width, height: height,
+      kind: ikTruecolor,
+      tPixels: s.handleTruecolor(width * height, pixelDepth, kind in TGA_RLE_KIND))
   of tkColorMap, tkRleColorMap:
-    raise newException (Exception, "Colormap not supported: " & $kind)
+    result = Image(
+      width: width, height: height,
+      kind: ikColormap,
+      cColormap: colormap,
+      cPixels: s.handleColorMapped(width * height, kind in TGA_RLE_KIND))
   of tkBlank:
-    raise newException (Exception, "Blank images are not supported: " & $kind)
+    result = Image(
+      width: width, height: height,
+      kind: ikGreyscale,
+      gPixels: newSeq[Color8]()
+    )
 
 
 
-proc writeTga* (s: Stream, i: Image, rle: bool = false) =
-  s.write (0'u8)
-  s.write (0'u8)
-  s.write (
+proc writeTga*(s: Stream, i: Image, rle: bool = false) =
+  s.write(0'u8)
+  s.write(0'u8)
+  s.write(
     if i.kind == ikGreyscale:
       if rle: tkRleGreyscale.uint8
       else:   tkGreyscale.uint8
@@ -202,48 +213,23 @@ proc writeTga* (s: Stream, i: Image, rle: bool = false) =
       if rle: tkRleTrueColor.uint8
       else:   tkTrueColor.uint8)
 
-  s.write (0'u16)
-  s.write (0'u16)
-  s.write (0'u8)
+  s.write(0'u16)
+  s.write(0'u16)
+  s.write(0'u8)
 
-  s.write (0'u16)
-  s.write (0'u16)
-  s.write (i.width.uint16)
-  s.write (i.height.uint16)
+  s.write(0'u16)
+  s.write(0'u16)
+  s.write(i.width.uint16)
+  s.write(i.height.uint16)
 
-  s.write (
+  s.write(
     if i.kind == ikGreyscale: 8'u8
     else: 32'u8)
-  s.write (0'u8)
+  s.write(0'u8)
 
   if i.kind == ikGreyscale:
-    if rle: s.write (rleEncode (Color8, i.gPixels, i.width, i.height))
-    else:   s.writeData (addr i.gPixels[0], i.gPixels.len)
+    if rle: s.rleEncode(Color8, i.gPixels, i.width, i.height)
+    else:   s.writeData(addr i.gPixels[0], i.gPixels.len)
   else:
-    if rle: s.write (rleEncode (Color32, i.tPixels, i.width, i.height))
-    else:   s.writeData (addr i.tPixels[0], i.tPixels.len * Color32.sizeof)
-
-
-
-
-when isMainModule:
-  import os
-
-  proc test (path: string, compress: bool = false) =
-    let
-      m = if compress: ".rle." else: ""
-      o = "out." & m & path.extractFilename
-      a = path.newFileStream (fmRead).readTga()
-    o.newFileStream (fmWRite).writeTga (a, compress)
-
-  "tests/8b.tga".test()
-  "tests/8b-rle.tga".test()
-  "tests/16b.tga".test()
-  "tests/16b-rle.tga".test()
-  "tests/24b.tga".test()
-  "tests/24b-rle.tga".test()
-  "tests/32b.tga".test()
-  "tests/32b-rle.tga".test()
-
-
-{.pop.}
+    if rle: s.rleEncode(Color32, i.tPixels, i.width, i.height)
+    else:   s.writeData(addr i.tPixels[0], i.tPixels.len * Color32.sizeof)

@@ -28,10 +28,10 @@ type
     map*: int
 
 
-proc readPkmMapLink (s: PkmRom): PkmMapLink =
+proc readPkmMapLink(s: PkmRom): PkmMapLink =
   let
-    data = s.read (PkmMapLinkData)
-  PkmMapLink (
+    data = s.read(PkmMapLinkData)
+  PkmMapLink(
     direction: data.direction.PkmLinkDir,
     offset: data.offset.int,
 
@@ -39,14 +39,14 @@ proc readPkmMapLink (s: PkmRom): PkmMapLink =
     map: data.map.int
   )
 
-proc readPkmMapLinks* (s: PkmRom): seq[PkmMapLink] =
+proc readPkmMapLinks*(s: PkmRom): seq[PkmMapLink] =
   let
-    num = s.read (uint32).int
-    listPtr = s.read (GBAPointer)
+    num = s.read(uint32).int
+    listPtr = s.read(GBAPointer)
   if num > 4:
-    raise newException (Exception, "Map cannot have more than 4 neighbouring maps.")
+    raise newException(Exception, "Map cannot have more than 4 neighbouring maps.")
 
-  discard s.seek (listPtr)
-  result.newSeq (num)
+  discard s.seek(listPtr)
+  result.newSeq(num)
   for d in result.mitems:
     d = s.readPkmMapLink()
