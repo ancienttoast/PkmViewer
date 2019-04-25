@@ -210,7 +210,7 @@ proc draw (rend: sdl2.RendererPtr, ts: TableRef[int64, SdlTilemap], map: int, wo
 sdl2.init(INIT_VIDEO)
 
 let
-  window = sdl2.createWindow("Pkm", -1, -1, 1280, 720, SDL_WINDOW_SHOWN)
+  window = sdl2.createWindow("Pkm", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN)
   rend   = sdl2.createRenderer(window, -1, RENDERER_ACCELERATED or RENDERER_PRESENTVSYNC)
 
   sdlTilemaps = newTable[int64, SdlTilemap]()
@@ -246,6 +246,9 @@ while running:
       let
         e = cast[KeyboardEventPtr](addr event)
       case e.keysym.scancode
+      of SDL_SCANCODE_ESCAPE:
+        running = false
+
       of SDL_SCANCODE_KP_PLUS:
         scale += 0.2
       of SDL_SCANCODE_KP_MINUS:
