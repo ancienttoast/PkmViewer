@@ -1,38 +1,7 @@
 import
-  streams, sequtils, tables, math,
+  streams, sequtils, strutils, tables, math,
   gba/[lz77, image],
   pkm/[data, tileset, cart, render, types, world, link, text]
-
-
-
-import
-  strutils, tga
-
-
-
-proc toColor32(c: GbaColor): Color32 =
-  (255.uint32 shl 24) + (c[0].uint32 shl 16) + (c[1].uint32 shl 8) + c[2].uint32
-
-proc writeTga(s: Stream, bitmap: GbaBitmap) =
-  var
-    width  = bitmap.width * GbaTileSize
-    height = bitmap.height * GbaTileSize
-    image = Image(width: width, height: height,
-      kind: ikTruecolor, tPixels: newSeq[Color32](width * height))
-
-  # flip the image on the y axis
-  var
-    x = 0
-    y = height - 1
-  for c in bitmap.pixels:
-    image.tPixels[y*width + x] = c.toColor32
-
-    x += 1
-    if x >= width:
-      x = 0
-      y -= 1
-
-  s.writeTga (image)
 
 
 
