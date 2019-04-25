@@ -1,6 +1,6 @@
 import
   streams, tables,
-  gba.rom, pkm.data, pkm.tileset, pkm.types
+  gba/rom, pkm/[data, tileset, types]
 
 export
   rom

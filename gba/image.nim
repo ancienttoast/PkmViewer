@@ -1,5 +1,5 @@
 import
-  strutils, gba.rom
+  strutils, rom
 
 
 

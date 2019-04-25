@@ -1,7 +1,7 @@
 import
   math, streams,
-  gba.image,
-  pkm.cart, pkm.data, pkm.tileset, pkm.types
+  gba/image,
+  pkm/[cart, data, tileset, types]
 
 
 

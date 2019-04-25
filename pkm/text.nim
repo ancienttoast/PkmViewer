@@ -1,5 +1,5 @@
 import
-  gba.rom
+  gba/rom
 
 # From:
 #   http://bulbapedia.bulbagarden.net/wiki/Character_encoding_in_Generation_III

@@ -1,5 +1,5 @@
 import
-  pkm.cart, gba.image, pkm.types
+  pkm/[cart, types], gba/image
 
 
 

@@ -1,5 +1,5 @@
 import
-  gba.image
+  gba/image
 
 
 

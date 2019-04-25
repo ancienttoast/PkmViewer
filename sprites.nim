@@ -1,7 +1,7 @@
 import
   streams, sequtils, tables, math,
-  gba.lz77, gba.image, pkm.text,
-  pkm.data, pkm.tileset, pkm.cart, pkm.render, pkm.types, pkm.world, pkm.link
+  gba/[lz77, image],
+  pkm/[data, tileset, cart, render, types, world, link, text]
 
 
 

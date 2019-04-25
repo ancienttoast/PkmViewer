@@ -1,6 +1,6 @@
 import
   sequtils, tables,
-  pkm.cart, pkm.types, pkm.tileset, pkm.render, pkm.link
+  pkm/[cart, types, tileset, render, link]
 
 
 
