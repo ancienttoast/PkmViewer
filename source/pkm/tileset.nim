@@ -120,6 +120,7 @@ proc readPkmTileset*(s: PkmRom, numBlocks: int): PkmTileset =
   result = PkmTileset(offset: s.tell())
   let
     header = s.read(PkmTilesetHeader)
+  echo header
   if header.compressed != 1:
     raise newException(Exception, "Non compressed tileset loading not implemented!")
 

@@ -1,1 +1,9 @@
 nimcache
+
+docs
+lib
+roms
+tools
+
+*.dll
+*.exe

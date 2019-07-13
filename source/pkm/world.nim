@@ -71,7 +71,7 @@ proc readPkmMap(s: PkmRom): PkmMap =
     header: header,
 
     size: layout.size,
-    tiles: tiles.mapIt(PkmMapTile, (num: it.int and 0x03ff, attribute: (it.int and 0xff00) shr 8)),
+    tiles: tiles.mapIt((num: it.int and 0x03ff, attribute: (it.int and 0xff00) shr 8)),
     links:
       if header.links.int == 0:
         newSeq[PkmMapLink]()

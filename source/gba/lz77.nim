@@ -32,13 +32,13 @@ proc decompressLZ77*(input: Stream): seq[uint8] =
     raise newException(Exception, "Data is not a valid LZ-0x10 chunk.")
 
   for i in 0 ..< 3:
-    decomp_size += cast[uint8](input.readInt8()).int shl (i * 8)
+    decomp_size += input.readUint8().int shl (i * 8)
 
   if decomp_size > MaxOutSize:
     raise newException(Exception, "Data will be larger than " & $MaxOutSize & " (" & $decomp_size & ") and will not be decompressed.")
   elif decomp_size == 0:
     for i in 0 ..< 4:
-      decomp_size += input.readInt8() shl (i * 8);
+      decomp_size += input.readInt8() shl (i * 8)
     
     if decomp_size > MaxOutSize shl 8:
       raise newException(Exception, "Data will be larger than " & $MaxOutSize & " (" & $decomp_size & ") and will not be decompressed.")
@@ -55,10 +55,10 @@ proc decompressLZ77*(input: Stream): seq[uint8] =
         flag = (flags and (0x80 shr i)) > 0
       if flag:
         let
-          b = cast[uint8](input.readInt8())
+          b = input.readUint8()
           n = 3 + (b shr 4).int
 
-          disp = ((b.int and 0x0F) shl 8) or cast[uint8](input.readInt8()).int
+          disp = ((b.int and 0x0F) shl 8) or input.readUint8().int
           cdest = curr_size
 
         if disp > curr_size:
@@ -68,7 +68,7 @@ proc decompressLZ77*(input: Stream): seq[uint8] =
           curr_size += 1
 
       else:
-        result[curr_size] = cast[uint8](input.readInt8())
+        result[curr_size] = input.readUint8()
         curr_size += 1
 
       if curr_size >= decomp_size:

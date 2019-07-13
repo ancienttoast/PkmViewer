@@ -44,17 +44,13 @@ if args.len >= 1:
   Map  = parseInt(args[0].split('.')[1])
 
 let
-  file = "Pokemon - Fire Red Version (U) (V1.0).gba"
+  file = "roms/Pokemon - Fire Red Version (U) (V1.0).gba"
   r = loadPkmRom(newFileStream(file))
 
 echo r.title, " - ", r.code, " rev", r.revision
-echo ""
-
-
+echo Bank, ".",  Map
 
 let
-  #world = r.readPkmWorld()
-
   bankPointer   = r.seek(r.gameData.mapHeaders).read(GBAPointer)
   bankPointers  = r.seek(bankPointer).read(r.gameData.numBanks, GBAPointer)
   b3MapPointers = r.seek(bankPointers[Bank].int).read(r.gameData.bankMapNums[Bank], GBAPointer)
@@ -180,7 +176,7 @@ proc draw (rend: sdl2.RendererPtr, ts: TableRef[int64, SdlTilemap], map: int, wo
 sdl2.init(INIT_VIDEO)
 
 let
-  window = sdl2.createWindow("Pkm", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN)
+  window = sdl2.createWindow("Pkm", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_RESIZABLE)
   rend   = sdl2.createRenderer(window, -1, RENDERER_ACCELERATED or RENDERER_PRESENTVSYNC)
 
   sdlTilemaps = newTable[int64, SdlTilemap]()
@@ -211,6 +207,12 @@ while running:
         if m.xrel < 100:
           xPos -= (m.xrel.float / scale).int
           yPos -= (m.yrel.float / scale).int
+    
+    of MouseWheel:
+      let
+        e = cast[MouseWheelEventPtr](addr event)
+      scale = clamp(scale + e.y.float*0.2, 0.1, 50)
+      
 
     of KeyDown:
       let
@@ -222,7 +224,7 @@ while running:
       of SDL_SCANCODE_KP_PLUS:
         scale += 0.2
       of SDL_SCANCODE_KP_MINUS:
-        scale -= 0.2
+        scale = max(scale - 0.2, 0.1)
 
       of SDL_SCANCODE_UP:
         yPos += ScrollSpeed
